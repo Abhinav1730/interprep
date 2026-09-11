@@ -3,22 +3,22 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 html,
 body {
-  background: #0b0c0e;
-  color: #f4f5f7;
+  background: #fafafa;
+  color: #111111;
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #2a2d34 transparent;
+  scrollbar-color: #d4d4d4 transparent;
 }
 
 ::selection {
-  background: rgba(94, 234, 212, 0.25);
+  background: rgba(41, 204, 87, 0.2);
 }
 
 button,
@@ -34,5 +34,51 @@ a:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  box-shadow: 0 0 0 2px #0b0c0e, 0 0 0 4px #5eead4;
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #29cc57;
+}
+
+@layer components {
+  .brand-mark {
+    @apply text-xs font-semibold uppercase tracking-[0.18em] text-accent;
+  }
+
+  .page-title {
+    @apply font-serif text-3xl font-semibold tracking-tight text-ink sm:text-4xl;
+  }
+
+  .section-title {
+    @apply font-serif text-xl font-semibold text-ink sm:text-2xl;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-full border border-line bg-panel px-5 py-2.5 text-sm font-medium text-ink transition hover:border-ink/15 hover:bg-canvas;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center rounded-full px-3 py-1.5 text-sm text-mute transition hover:bg-canvas hover:text-ink;
+  }
+
+  .card {
+    @apply rounded-3xl border border-line bg-panel shadow-card;
+  }
+
+  .input-field {
+    @apply w-full rounded-2xl border border-line bg-panel px-4 py-2.5 text-sm text-ink transition placeholder:text-mute/60 focus:border-accent focus:ring-2 focus:ring-accent/15;
+  }
+
+  .nav-link {
+    @apply block rounded-xl px-3 py-2 text-sm text-mute transition hover:bg-canvas hover:text-ink;
+  }
+
+  .nav-link-active {
+    @apply bg-accent-light font-medium text-ink;
+  }
+
+  .status-badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
 }

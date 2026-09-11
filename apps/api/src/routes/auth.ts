@@ -50,6 +50,11 @@ authRouter.post("/logout", async (req, res) => {
 });
 
 authRouter.get("/me", requireAuth, async (req, res) => {
-  const { userId, userEmail } = req as AuthedRequest;
-  res.json({ user: { id: userId, email: userEmail } });
+  const { userId } = req as AuthedRequest;
+  const user = await User.findById(userId).select("email createdAt");
+  if (!user) {
+    res.status(401).json({ error: { code: "UNAUTHENTICATED", message: "Account not found" } });
+    return;
+  }
+  res.json({ user: { id: user._id, email: user.email, createdAt: user.createdAt } });
 });

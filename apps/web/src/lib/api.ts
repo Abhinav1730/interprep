@@ -111,4 +111,6 @@ export type KitRecord = {
   kit: KitPayload | null;
   generation: Generation;
   error?: { code: string; message: string } | null;
+  createdAt?: string;
+  updatedAt?: string;
 };
