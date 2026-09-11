@@ -8,6 +8,7 @@ import { TAB_ICONS } from "@/components/icons";
 import { useToast } from "@/components/Toast";
 import { api, type KitPayload } from "@/lib/api";
 import { KIT_TABS, parseKitTab, type KitTabId } from "@/lib/kit-tabs";
+import { useAuth } from "@/lib/auth";
 import { saveLastKit } from "@/lib/last-kit";
 import { todayScheduleFocus } from "@/lib/study-day";
 import { FlashcardBank } from "./FlashcardBank";
@@ -43,6 +44,7 @@ export function KitWorkspace({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const toast = useToast();
   const { confirm } = useConfirm();
   const activeTab = parseKitTab(searchParams.get("tab"));
@@ -71,8 +73,9 @@ export function KitWorkspace({
   );
 
   useEffect(() => {
-    saveLastKit(kitId, `${kit.company_brief.name} · ${kit.role.title}`);
-  }, [kitId, kit.company_brief.name, kit.role.title]);
+    if (!user?.id) return;
+    saveLastKit(user.id, kitId, `${kit.company_brief.name} · ${kit.role.title}`);
+  }, [user?.id, kitId, kit.company_brief.name, kit.role.title]);
 
   useEffect(() => {
     api<{

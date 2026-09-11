@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { ApiError, api, type KitSummary } from "@/lib/api";
+import { clearLegacyLastKit } from "@/lib/last-kit";
 
 export type AuthUser = { id: string; email: string; createdAt?: string };
 
@@ -33,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const ready = useRef(false);
 
   const seedSession = useCallback((nextUser: AuthUser, nextKits: KitSummary[]) => {
+    clearLegacyLastKit();
     setUser(nextUser);
     setKits(nextKits);
     ready.current = true;
@@ -40,6 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const clear = useCallback(() => {
+    clearLegacyLastKit();
     setUser(null);
     setKits(null);
     ready.current = false;

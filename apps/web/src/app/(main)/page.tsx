@@ -26,8 +26,14 @@ export default function DashboardPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
-    setLastKit(loadLastKit());
-  }, []);
+    if (!user?.id || kits === null) return;
+    const saved = loadLastKit(user.id);
+    if (saved && kits.some((k) => k.id === saved.id)) {
+      setLastKit(saved);
+    } else {
+      setLastKit(null);
+    }
+  }, [user?.id, kits]);
 
   useEffect(() => {
     if (!kits?.length) return;
