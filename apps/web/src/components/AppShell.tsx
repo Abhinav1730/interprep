@@ -18,6 +18,14 @@ const NAV = [
   { href: "/kits/new", label: "New kit", Icon: IconSparkle },
 ] as const;
 
+function AuthGate() {
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-canvas">
+      <p className="text-sm text-mute">Loading…</p>
+    </div>
+  );
+}
+
 function SidebarContent({
   pathname,
   user,
@@ -185,6 +193,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, kits, clear, refresh } = useAuth();
+  const [booting, setBooting] = useState(() => !user);
   const [mobileNav, setMobileNav] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -200,10 +209,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    refresh().catch(() => {
-      // 401 redirect handled in refresh
-    });
-  }, [refresh]);
+    if (user) {
+      setBooting(false);
+      return;
+    }
+    refresh()
+      .catch(() => {
+        // 401 redirect handled in refresh
+      })
+      .finally(() => setBooting(false));
+  }, [refresh, user]);
 
   useEffect(() => {
     setMobileNav(false);
@@ -251,6 +266,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (next) setAccountOpen(false);
       return next;
     });
+  }
+
+  if (!user || booting) {
+    return <AuthGate />;
   }
 
   const sidebarProps = {
