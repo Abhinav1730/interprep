@@ -170,23 +170,3 @@ Then use `http://localhost:8099/` as `company_url`.
 | `NEXT_PUBLIC_API_URL` | browser API base |
 | `ALLOW_PRIVATE_URLS` | allow localhost crawl |
 | `EVALUATION_MODE` | set by the CLI |
-
-Never commit real keys.
-
-## Deployment
-
-- Frontend: Vercel (`apps/web`), set `NEXT_PUBLIC_API_URL` to the public API.
-- API: Render / Railway, start `npm run start -w @interprep/api`.
-- Database: MongoDB Atlas.
-- Production: `NODE_ENV=production`, `ALLOW_PRIVATE_URLS=false`. The evaluate command still forces localhost allowance when you run it locally.
-
-## Limitations
-
-- Free LLM endpoints rate-limit. Backoff and fallback reduce but do not eliminate 429s.
-- Public discussion search depends on DuckDuckGo HTML and may return nothing; the kit still generates.
-- Company research is bounded (8 pages, 2 hops). Unusual IA can still be missed; ranking is a heuristic, not an allowlist.
-- 60-day schedules repeat review items after questions run out.
-
-## Walkthrough
-
-See [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md) for a 3–4 minute demo script.
