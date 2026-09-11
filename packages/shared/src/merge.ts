@@ -27,6 +27,25 @@ export function mergeRegeneratedFlashcards(existing: Flashcard[], regenerated: F
   return [...keep, ...fresh];
 }
 
+export function applyFlashcardEdit(
+  flashcard: Flashcard,
+  patch: Partial<Pick<Flashcard, "front" | "back" | "requirement_ids" | "pinned">>,
+): Flashcard {
+  const generated = flashcard.generated ?? {
+    front: flashcard.front,
+    back: flashcard.back,
+  };
+  const edited = new Set(flashcard.edited_fields ?? []);
+  if (patch.front !== undefined && patch.front !== generated.front) edited.add("front");
+  if (patch.back !== undefined && patch.back !== generated.back) edited.add("back");
+  return {
+    ...flashcard,
+    ...patch,
+    generated,
+    edited_fields: [...edited],
+  };
+}
+
 export function applyQuestionEdit(
   question: Question,
   patch: Partial<Pick<Question, "prompt" | "answer_outline" | "category" | "difficulty" | "requirement_ids" | "pinned">>,

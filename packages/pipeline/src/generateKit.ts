@@ -21,7 +21,14 @@ import {
   markStep,
 } from "@interprep/shared";
 import { researchCompany, type ResearchBundle } from "@interprep/retrieval";
-import { extractCompany, extractRole, generateFlashcards, generateQuestionsForCategory, type Extraction } from "./generate.js";
+import {
+  extractCompany,
+  extractRole,
+  generateFlashcards,
+  generateGapQuestions,
+  generateQuestionsForCategory,
+  type Extraction,
+} from "./generate.js";
 
 const MAX_COVERAGE_PASSES = 3;
 const HIRING_NOT_FOUND =
@@ -251,16 +258,37 @@ export async function generateKit(
 
     while (coverage.uncovered_requirement_ids.length > 0 && passes < MAX_COVERAGE_PASSES) {
       const missing = requirements.filter((r) => coverage.uncovered_requirement_ids.includes(r.id));
-      const gap = await generateQuestionsForCategory({
-        category: "technical",
+      const gap = await generateGapQuestions({
         requirements: missing,
         companySummary,
         hiringProcess: company.hiring_process,
       });
-      const added = stampQuestions(gap.questions, "technical", validIds, questions.map((q) => q.id)).map((q) => {
-        const req = missing.find((r) => q.requirement_ids.includes(r.id));
-        return req ? { ...q, category: requirementsForCategory([req], "behavioural").length && req.kind === "behavioural" ? "behavioural" as const : q.category } : q;
-      });
+      const added: Question[] = [];
+      let ids = questions.map((q) => q.id);
+      for (const item of gap.questions) {
+        const reqIds = item.requirement_ids.filter((id) => validIds.has(id));
+        if (!reqIds.length) continue;
+        const category =
+          item.category === "technical" ||
+          item.category === "behavioural" ||
+          item.category === "system-design" ||
+          item.category === "company-fit"
+            ? item.category
+            : "technical";
+        const difficulty = item.difficulty === 1 || item.difficulty === 2 || item.difficulty === 3 ? item.difficulty : 2;
+        const id = nextId("q", ids);
+        ids.push(id);
+        added.push({
+          id,
+          requirement_ids: reqIds,
+          category,
+          prompt: item.prompt,
+          answer_outline: item.answer_outline,
+          difficulty,
+          origin: "generated",
+          generated: { prompt: item.prompt, answer_outline: item.answer_outline, category },
+        });
+      }
       questions = [...questions, ...added];
       passes += 1;
       coverage = computeCoverage(requirements, questions, passes, { mustOnly: true });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { mergeRegeneratedQuestions } from "@interprep/shared";
-import type { Question } from "@interprep/shared";
+import { applyFlashcardEdit, mergeRegeneratedQuestions } from "@interprep/shared";
+import type { Flashcard, Question } from "@interprep/shared";
 
 describe("regeneration merge", () => {
   const existing: Question[] = [
@@ -40,5 +40,21 @@ describe("regeneration merge", () => {
     expect(merged.some((q) => q.id === "q2" && q.prompt === "Edited prompt")).toBe(true);
     expect(merged.some((q) => q.prompt === "Brand new")).toBe(true);
     expect(merged.some((q) => q.id === "q1")).toBe(false);
+  });
+});
+
+describe("flashcard edits", () => {
+  it("tracks edited flashcard fields", () => {
+    const card: Flashcard = {
+      id: "f1",
+      front: "Original front",
+      back: "Original back",
+      requirement_ids: ["r1"],
+      origin: "generated",
+      generated: { front: "Original front", back: "Original back" },
+    };
+    const edited = applyFlashcardEdit(card, { front: "Updated front" });
+    expect(edited.front).toBe("Updated front");
+    expect(edited.edited_fields).toContain("front");
   });
 });

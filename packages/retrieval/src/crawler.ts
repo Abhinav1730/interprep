@@ -6,6 +6,7 @@ import { loadRobots } from "./robots.js";
 import { searchPublicDiscussions } from "./publicSearch.js";
 import {
   assertFetchableUrl,
+  assertResolvableFetchableUrl,
   evaluationUrlPolicy,
   sameRegistrableHost,
   urlKey,
@@ -28,7 +29,12 @@ export type ResearchBundle = {
 };
 
 const MAX_PAGES = 8;
+const CRAWL_DELAY_MS = 350;
 const HIRING_HINT = /interview|hiring process|recruiting|take-home|on-site|onsite|system design round|phone screen/i;
+
+function crawlDelay(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, CRAWL_DELAY_MS));
+}
 
 function hiringSnippet(pages: CrawledPage[]): { found: boolean; text: string } {
   for (const page of pages) {
@@ -58,7 +64,7 @@ export async function researchCompany(args: {
 
   let start: URL;
   try {
-    start = assertFetchableUrl(args.companyUrl, policy);
+    start = await assertResolvableFetchableUrl(args.companyUrl, policy);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Invalid company URL";
     return {
@@ -101,6 +107,8 @@ export async function researchCompany(args: {
     if (!robots.isAllowed(target.toString())) continue;
 
     try {
+      if (pages.length > 0) await crawlDelay();
+      await assertResolvableFetchableUrl(target.toString(), policy);
       const fetched = await fetchText(target.toString(), policy, fetchImpl);
       if (fetched.status >= 400) {
         fetchFailures += 1;

@@ -56,6 +56,7 @@ export {
   mergeRegeneratedQuestions,
   mergeRegeneratedFlashcards,
   applyQuestionEdit,
+  applyFlashcardEdit,
 } from "./merge.js";
 export { orderFlashcardsForPractice, buildWeakSpots } from "./weakSpots.js";
 export type { PracticeRecord, WeakSpot } from "./weakSpots.js";

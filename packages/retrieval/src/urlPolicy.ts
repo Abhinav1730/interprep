@@ -1,3 +1,5 @@
+import dns from "node:dns/promises";
+
 const PRIVATE_V4 = [
   /^127\./,
   /^10\./,
@@ -14,6 +16,22 @@ function isPrivateV4(ip: string): boolean {
     return true;
   }
   return false;
+}
+
+function isPrivateIp(ip: string): boolean {
+  const lower = ip.toLowerCase();
+  if (lower.includes(":")) {
+    return (
+      lower === "::1" ||
+      lower.startsWith("fc") ||
+      lower.startsWith("fd") ||
+      lower.startsWith("fe80") ||
+      lower.startsWith("::ffff:127.") ||
+      lower.startsWith("::ffff:10.") ||
+      lower.startsWith("::ffff:192.168.")
+    );
+  }
+  return isPrivateV4(ip);
 }
 
 function isLoopbackHost(hostname: string): boolean {
@@ -61,6 +79,33 @@ export function assertFetchableUrl(raw: string, policy: UrlPolicy = evaluationUr
   if (isPrivateV4(host) && !policy.allowPrivate) {
     throw Object.assign(new Error("Private addresses are not allowed in production"), {
       code: "SSRF_REJECTED",
+    });
+  }
+  return parsed;
+}
+
+export async function assertResolvableFetchableUrl(
+  raw: string,
+  policy: UrlPolicy = evaluationUrlPolicy(),
+): Promise<URL> {
+  const parsed = assertFetchableUrl(raw, policy);
+  if (policy.allowPrivate || isLoopbackHost(parsed.hostname) || isPrivateV4(parsed.hostname)) {
+    return parsed;
+  }
+
+  try {
+    const results = await dns.lookup(parsed.hostname, { all: true });
+    for (const result of results) {
+      if (isPrivateIp(result.address)) {
+        throw Object.assign(new Error("Hostname resolves to a private address"), {
+          code: "SSRF_REJECTED",
+        });
+      }
+    }
+  } catch (err) {
+    if ((err as { code?: string }).code === "SSRF_REJECTED") throw err;
+    throw Object.assign(new Error(`Could not resolve hostname: ${parsed.hostname}`), {
+      code: "DNS_FAILED",
     });
   }
   return parsed;

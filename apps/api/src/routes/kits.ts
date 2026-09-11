@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import {
+  applyFlashcardEdit,
   applyQuestionEdit,
   buildSchedule,
   buildWeakSpots,
@@ -56,6 +57,14 @@ async function ownedKit(req: Request, res: Response, id: string) {
 }
 
 const running = new Set<string>();
+
+function rebuildSchedule(kit: Kit, days: number) {
+  kit.schedule = buildSchedule({
+    daysAvailable: days,
+    questions: kit.questions,
+    requirements: kit.role.requirements,
+  });
+}
 
 async function runGeneration(kitId: string, input: { jd: string; company_url: string; days: number }) {
   if (running.has(kitId)) return;
@@ -204,6 +213,7 @@ kitsRouter.post("/:id/questions", async (req, res) => {
   };
   kit.questions.push(question);
   kit.coverage = computeCoverage(kit.role.requirements, kit.questions, kit.coverage.passes, { mustOnly: true });
+  rebuildSchedule(kit, (doc.input as { days: number }).days);
   doc.kit = kit;
   doc.markModified("kit");
   await doc.save();
@@ -272,11 +282,75 @@ kitsRouter.delete("/:id/questions/:qid", async (req, res) => {
   }
   const kit = doc.kit as Kit;
   kit.questions = kit.questions.filter((q) => q.id !== req.params.qid);
-  kit.schedule.days = kit.schedule.days.map((d) => ({
-    ...d,
-    question_ids: d.question_ids.filter((id) => id !== req.params.qid),
-  }));
   kit.coverage = computeCoverage(kit.role.requirements, kit.questions, kit.coverage.passes, { mustOnly: true });
+  rebuildSchedule(kit, (doc.input as { days: number }).days);
+  doc.kit = kit;
+  doc.markModified("kit");
+  await doc.save();
+  res.json({ kit: serialize(doc) });
+});
+
+kitsRouter.post("/:id/flashcards", async (req, res) => {
+  const doc = await ownedKit(req, res, req.params.id);
+  if (!doc?.kit) {
+    if (!res.headersSent) res.status(409).json({ error: { code: "NOT_READY", message: "Kit is still generating" } });
+    return;
+  }
+  const kit = doc.kit as Kit;
+  const id = nextId("f", kit.flashcards.map((f) => f.id));
+  const flashcard: Flashcard = {
+    id,
+    front: req.body.front || "New flashcard",
+    back: req.body.back || "Add an answer.",
+    requirement_ids: req.body.requirement_ids?.length
+      ? req.body.requirement_ids
+      : [kit.role.requirements[0]?.id].filter(Boolean),
+    origin: "user",
+    pinned: true,
+  };
+  kit.flashcards.push(flashcard);
+  doc.kit = kit;
+  doc.markModified("kit");
+  await doc.save();
+  res.status(201).json({ kit: serialize(doc) });
+});
+
+kitsRouter.patch("/:id/flashcards/:fid", async (req, res) => {
+  const doc = await ownedKit(req, res, req.params.id);
+  if (!doc?.kit) {
+    if (!res.headersSent) {
+      res.status(409).json({ error: { code: "NOT_READY", message: "Kit is still generating" } });
+    }
+    return;
+  }
+  const kit = doc.kit as Kit;
+  const idx = kit.flashcards.findIndex((f) => f.id === req.params.fid);
+  if (idx < 0) {
+    res.status(404).json({ error: { code: "NOT_FOUND", message: "Flashcard not found" } });
+    return;
+  }
+  kit.flashcards[idx] = applyFlashcardEdit(kit.flashcards[idx]!, req.body);
+  doc.kit = kit;
+  doc.markModified("kit");
+  await doc.save();
+  res.json({ kit: serialize(doc) });
+});
+
+kitsRouter.delete("/:id/flashcards/:fid", async (req, res) => {
+  const doc = await ownedKit(req, res, req.params.id);
+  if (!doc?.kit) {
+    if (!res.headersSent) {
+      res.status(409).json({ error: { code: "NOT_READY", message: "Kit is still generating" } });
+    }
+    return;
+  }
+  const kit = doc.kit as Kit;
+  kit.flashcards = kit.flashcards.filter((f) => f.id !== req.params.fid);
+  await PracticeRecord.deleteMany({
+    kitId: doc._id,
+    userId: (asAuth(req)).userId,
+    flashcardId: req.params.fid,
+  });
   doc.kit = kit;
   doc.markModified("kit");
   await doc.save();

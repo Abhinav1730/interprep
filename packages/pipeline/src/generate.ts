@@ -1,7 +1,14 @@
 import { z } from "zod";
 import { generateStructured } from "@interprep/llm";
 import { REQUIREMENT_KINDS, REQUIREMENT_PRIORITIES, type QuestionCategory } from "@interprep/shared";
-import { COMPANY_SYSTEM, EXTRACTION_SYSTEM, FLASHCARD_SYSTEM, QUESTION_SYSTEM, wrapUntrusted } from "./prompts.js";
+import {
+  COMPANY_SYSTEM,
+  EXTRACTION_SYSTEM,
+  FLASHCARD_SYSTEM,
+  GAP_QUESTION_SYSTEM,
+  QUESTION_SYSTEM,
+  wrapUntrusted,
+} from "./prompts.js";
 
 const extractedReq = z.object({
   text: z.string().min(1),
@@ -192,6 +199,71 @@ export const flashcardsSchema = z.object({
     }),
   ),
 });
+
+const gapQuestionSchema = z.object({
+  prompt: z.string().min(1),
+  answer_outline: z.string().min(1),
+  difficulty: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+  requirement_ids: z.array(z.string()).min(1),
+  category: z.enum(["technical", "behavioural", "system-design", "company-fit"]),
+});
+
+export const gapQuestionsSchema = z.object({
+  questions: z.array(gapQuestionSchema).min(1),
+});
+
+export async function generateGapQuestions(args: {
+  requirements: Array<{ id: string; text: string; kind: string; priority: string }>;
+  companySummary: string;
+  hiringProcess: string;
+}): Promise<z.infer<typeof gapQuestionsSchema>> {
+  try {
+    return await generateStructured(
+      {
+        task: "gapQuestions",
+        schemaName: "GapQuestions",
+        temperature: 0.35,
+        jsonSchema: {
+          type: "object",
+          required: ["questions"],
+          properties: {
+            questions: {
+              type: "array",
+              items: {
+                type: "object",
+                required: ["prompt", "answer_outline", "difficulty", "requirement_ids", "category"],
+                properties: {
+                  prompt: { type: "string" },
+                  answer_outline: { type: "string" },
+                  difficulty: { type: "integer" },
+                  requirement_ids: { type: "array", items: { type: "string" } },
+                  category: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+        messages: [
+          { role: "system", content: GAP_QUESTION_SYSTEM },
+          {
+            role: "user",
+            content: wrapUntrusted(
+              "COVERAGE GAP CONTEXT",
+              JSON.stringify({
+                uncovered_requirements: args.requirements,
+                company_summary: args.companySummary,
+                hiring_process: args.hiringProcess,
+              }),
+            ),
+          },
+        ],
+      },
+      gapQuestionsSchema,
+    );
+  } catch {
+    return { questions: [] };
+  }
+}
 
 export async function generateFlashcards(args: {
   requirements: Array<{ id: string; text: string }>;

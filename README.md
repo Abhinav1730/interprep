@@ -64,7 +64,7 @@ The crawler does **not** only hit `/careers` and `/about`.
 
 Relative URLs are resolved with the WHATWG `URL` API so `http://localhost:8099/acme/` + `careers` becomes `http://localhost:8099/acme/careers`.
 
-**URL policy:** production rejects loopback and private addresses (SSRF). Evaluation and local development set `ALLOW_PRIVATE_URLS=true` / `EVALUATION_MODE=true` so the batch evaluator’s localhost fixtures work.
+**URL policy:** production rejects loopback and private addresses (SSRF), including hostnames that resolve to private IPs (DNS rebinding guard). Evaluation and local development set `ALLOW_PRIVATE_URLS=true` / `EVALUATION_MODE=true` so the batch evaluator’s localhost fixtures work. Crawl requests are rate-limited (~350ms between pages) and retried with backoff on transient failures.
 
 Public interview discussion is a **separate** source (`type: "public_discussion"`). It is supporting evidence, never treated as ground truth.
 
@@ -98,7 +98,7 @@ Schedule score = `difficulty * 10 + must * 20 + categoryWeight`. Days are number
 
 ## Builder state
 
-Each question stores `generated` vs current fields, `edited_fields`, `pinned`, and `origin`. Regenerating a section keeps edited, pinned, and user-created items and replaces the rest. Reorder is optimistic in the UI, then `PATCH /kits/:id/questions/reorder`.
+Each question and flashcard stores `generated` vs current fields, `edited_fields`, `pinned`, and `origin`. Regenerating a section keeps edited, pinned, and user-created items and replaces the rest. Reorder is optimistic in the UI, then `PATCH /kits/:id/questions/reorder`. The company brief is editable inline in the UI. Batch kit creation accepts a JSON file of `{ jd, company_url, days }` cases on the New kit page.
 
 ## Practice and weak spots
 
@@ -113,6 +113,7 @@ The creative feature is a **Weak Spots** report derived from requirements, flash
 - `GET /kits/:id/progress`
 - `POST /kits/:id/regenerate/{company,technical,behavioural,system-design,company-fit,flashcards,schedule}`
 - question add / edit / delete / reorder / move-category
+- flashcard add / edit / delete
 - `GET/POST /kits/:id/practice`
 
 `POST /kits` returns immediately with `status=generating`. The UI polls every 1.5s.

@@ -10,6 +10,7 @@ import { api, type KitPayload } from "@/lib/api";
 import { KIT_TABS, parseKitTab, type KitTabId } from "@/lib/kit-tabs";
 import { saveLastKit } from "@/lib/last-kit";
 import { todayScheduleFocus } from "@/lib/study-day";
+import { FlashcardBank } from "./FlashcardBank";
 import { QuestionBank } from "./QuestionBank";
 
 const QUESTION_CATEGORIES = ["technical", "behavioural", "system-design", "company-fit"] as const;
@@ -52,6 +53,14 @@ export function KitWorkspace({
   const [busy, setBusy] = useState<string | null>(null);
   const [weak, setWeak] = useState<WeakSpot[]>([]);
   const [practicedIds, setPracticedIds] = useState<Set<string>>(new Set());
+  const [editingBrief, setEditingBrief] = useState(false);
+  const [briefDraft, setBriefDraft] = useState({
+    summary: initial.company_brief.summary,
+    products: initial.company_brief.products.join(", "),
+    culture: initial.company_brief.culture,
+    engineering: initial.company_brief.engineering,
+    hiring_process: initial.company_brief.hiring_process,
+  });
 
   const setTab = useCallback(
     (tab: KitTabId) => {
@@ -101,6 +110,34 @@ export function KitWorkspace({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  async function saveBrief() {
+    setBusy("company-save");
+    try {
+      const data = await api<{ kit: { kit: KitPayload } }>(`/kits/${kitId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          company_brief: {
+            summary: briefDraft.summary,
+            products: briefDraft.products
+              .split(",")
+              .map((p) => p.trim())
+              .filter(Boolean),
+            culture: briefDraft.culture,
+            engineering: briefDraft.engineering,
+            hiring_process: briefDraft.hiring_process,
+          },
+        }),
+      });
+      setKit(data.kit.kit);
+      setEditingBrief(false);
+      toast.success("Company brief saved");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save brief");
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function regenerate(section: string) {
     const label = REGENERATE_LABELS[section] || section;
@@ -303,20 +340,105 @@ export function KitWorkspace({
             <PanelHeader
               title="Company brief"
               action={
-                <button className="btn-ghost" onClick={() => regenerate("company")} disabled={busy === "company"}>
-                  {busy === "company" ? "Regenerating…" : "Regenerate"}
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  {editingBrief ? (
+                    <>
+                      <button className="btn-primary px-4 py-2 text-xs" onClick={() => saveBrief()} disabled={busy === "company-save"}>
+                        {busy === "company-save" ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        className="btn-secondary px-4 py-2 text-xs"
+                        onClick={() => {
+                          setBriefDraft({
+                            summary: kit.company_brief.summary,
+                            products: kit.company_brief.products.join(", "),
+                            culture: kit.company_brief.culture,
+                            engineering: kit.company_brief.engineering,
+                            hiring_process: kit.company_brief.hiring_process,
+                          });
+                          setEditingBrief(false);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button className="btn-secondary px-4 py-2 text-xs" onClick={() => setEditingBrief(true)}>
+                      Edit
+                    </button>
+                  )}
+                  <button className="btn-ghost" onClick={() => regenerate("company")} disabled={busy === "company"}>
+                    {busy === "company" ? "Regenerating…" : "Regenerate"}
+                  </button>
+                </div>
               }
             />
             <div className="card p-5 sm:p-6">
-              <p className="text-sm leading-relaxed">{kit.company_brief.summary}</p>
-              {kit.company_brief.products.length ? (
-                <p className="mt-4 text-sm text-mute">Products: {kit.company_brief.products.join(", ")}</p>
-              ) : null}
-              <p className="mt-4 text-sm">
-                <span className="font-medium text-ink">Hiring process: </span>
-                <span className="text-mute">{kit.company_brief.hiring_process}</span>
-              </p>
+              {editingBrief ? (
+                <div className="space-y-4">
+                  <label className="block text-sm">
+                    <span className="font-medium">Summary</span>
+                    <textarea
+                      value={briefDraft.summary}
+                      onChange={(e) => setBriefDraft((d) => ({ ...d, summary: e.target.value }))}
+                      className="input-field mt-1.5"
+                      rows={5}
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    <span className="font-medium">Products (comma-separated)</span>
+                    <input
+                      value={briefDraft.products}
+                      onChange={(e) => setBriefDraft((d) => ({ ...d, products: e.target.value }))}
+                      className="input-field mt-1.5"
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    <span className="font-medium">Culture</span>
+                    <textarea
+                      value={briefDraft.culture}
+                      onChange={(e) => setBriefDraft((d) => ({ ...d, culture: e.target.value }))}
+                      className="input-field mt-1.5"
+                      rows={2}
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    <span className="font-medium">Engineering</span>
+                    <textarea
+                      value={briefDraft.engineering}
+                      onChange={(e) => setBriefDraft((d) => ({ ...d, engineering: e.target.value }))}
+                      className="input-field mt-1.5"
+                      rows={2}
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    <span className="font-medium">Hiring process</span>
+                    <textarea
+                      value={briefDraft.hiring_process}
+                      onChange={(e) => setBriefDraft((d) => ({ ...d, hiring_process: e.target.value }))}
+                      className="input-field mt-1.5"
+                      rows={4}
+                    />
+                  </label>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm leading-relaxed">{kit.company_brief.summary}</p>
+                  {kit.company_brief.products.length ? (
+                    <p className="mt-4 text-sm text-mute">Products: {kit.company_brief.products.join(", ")}</p>
+                  ) : null}
+                  {kit.company_brief.culture ? (
+                    <p className="mt-4 text-sm text-mute">Culture: {kit.company_brief.culture}</p>
+                  ) : null}
+                  {kit.company_brief.engineering ? (
+                    <p className="mt-4 text-sm text-mute">Engineering: {kit.company_brief.engineering}</p>
+                  ) : null}
+                  <p className="mt-4 text-sm">
+                    <span className="font-medium text-ink">Hiring process: </span>
+                    <span className="text-mute">{kit.company_brief.hiring_process}</span>
+                  </p>
+                </>
+              )}
               <ul className="mt-4 space-y-1.5 text-xs text-mute">
                 {kit.company_brief.sources.map((s) => (
                   <li key={s.url}>
@@ -390,14 +512,7 @@ export function KitWorkspace({
                 </button>
               }
             />
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {kit.flashcards.map((card) => (
-                <div key={card.id} className="card p-5 transition hover:shadow-soft">
-                  <p className="text-sm font-medium leading-relaxed">{card.front}</p>
-                  <p className="mt-3 border-t border-line pt-3 text-sm leading-relaxed text-mute">{card.back}</p>
-                </div>
-              ))}
-            </div>
+            <FlashcardBank kitId={kitId} kit={kit} onKit={setKit} />
           </>
         );
 

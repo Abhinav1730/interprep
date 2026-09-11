@@ -108,9 +108,21 @@ export const kitSchema = z.object({
   coverage: coverageSchema,
 });
 
+function isValidHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export const kitInputSchema = z.object({
   jd: z.string().min(1, "Job description is required"),
-  company_url: z.string().min(1, "Company URL is required"),
+  company_url: z
+    .string()
+    .min(1, "Company URL is required")
+    .refine(isValidHttpUrl, "Company URL must be a valid http or https URL"),
   days: z.number().int().positive("Days until interview must be a positive integer"),
 });
 
