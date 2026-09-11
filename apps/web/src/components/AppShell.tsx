@@ -5,7 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { CommandPalette, KeyboardShortcutsHelp } from "@/components/CommandPalette";
 import { IconChevronLeft, IconChevronRight, IconGrid, IconSparkle } from "@/components/icons";
-import { ApiError, api, type KitSummary } from "@/lib/api";
+import { api, type KitSummary } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import {
   isKitWorkspacePath,
   loadSidebarCollapsed,
@@ -16,8 +17,6 @@ const NAV = [
   { href: "/", label: "My kits", Icon: IconGrid },
   { href: "/kits/new", label: "New kit", Icon: IconSparkle },
 ] as const;
-
-type User = { id: string; email: string; createdAt?: string };
 
 function SidebarContent({
   pathname,
@@ -34,7 +33,7 @@ function SidebarContent({
   onToggleCollapse,
 }: {
   pathname: string;
-  user: User | null;
+  user: { id: string; email: string; createdAt?: string } | null;
   kitCount: number;
   accountOpen: boolean;
   onAccountToggle: () => void;
@@ -185,8 +184,7 @@ function SidebarContent({
 export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<User | null>(null);
-  const [kits, setKits] = useState<KitSummary[] | null>(null);
+  const { user, kits, clear, refresh } = useAuth();
   const [mobileNav, setMobileNav] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -202,15 +200,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    Promise.all([api<{ user: User }>("/auth/me"), api<{ kits: KitSummary[] }>("/kits")])
-      .then(([me, data]) => {
-        setUser(me.user);
-        setKits(data.kits);
-      })
-      .catch((err) => {
-        if (err instanceof ApiError && err.status === 401) router.replace("/login");
-      });
-  }, [router]);
+    refresh().catch(() => {
+      // 401 redirect handled in refresh
+    });
+  }, [refresh]);
 
   useEffect(() => {
     setMobileNav(false);
@@ -244,6 +237,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     setLoggingOut(true);
     try {
       await api("/auth/logout", { method: "POST" });
+      clear();
       router.replace("/login");
     } finally {
       setLoggingOut(false);

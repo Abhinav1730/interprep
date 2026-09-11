@@ -24,6 +24,7 @@ import { PracticeRecord } from "../models/Practice.js";
 import { inputHash } from "@interprep/shared";
 import { initialProgress } from "@interprep/shared";
 import type { AuthedRequest } from "../middleware/auth.js";
+import { cardMetaForUser, listKitsForUser } from "../services/kitsList.js";
 
 export const kitsRouter = Router();
 
@@ -99,19 +100,14 @@ async function runGeneration(kitId: string, input: { jd: string; company_url: st
 
 kitsRouter.get("/", async (req, res) => {
   const { userId } = asAuth(req);
-  const kits = await KitModel.find({ userId }).sort({ updatedAt: -1 }).lean();
-  res.json({
-    kits: kits.map((k) => ({
-      id: String(k._id),
-      status: k.status,
-      title: (k.kit as Kit | null)?.role?.title,
-      company: (k.kit as Kit | null)?.company_brief?.name,
-      days: k.input.days,
-      createdAt: k.createdAt,
-      updatedAt: k.updatedAt,
-      error: k.error,
-    })),
-  });
+  const kits = await listKitsForUser(userId);
+  res.json({ kits });
+});
+
+kitsRouter.get("/card-meta", async (req, res) => {
+  const { userId } = asAuth(req);
+  const meta = await cardMetaForUser(userId);
+  res.json({ meta });
 });
 
 kitsRouter.post("/", async (req, res) => {

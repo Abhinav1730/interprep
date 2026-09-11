@@ -4,6 +4,7 @@ import { z } from "zod";
 import { ensureDb } from "../db.js";
 import { User } from "../models/User.js";
 import { clearSession, createSession, requireAuth, type AuthedRequest } from "../middleware/auth.js";
+import { listKitsForUser } from "../services/kitsList.js";
 
 export const authRouter = Router();
 
@@ -36,8 +37,9 @@ authRouter.post("/register", async (req, res) => {
   }
   const passwordHash = await bcrypt.hash(parsed.data.password, BCRYPT_ROUNDS);
   const user = await User.create({ email, passwordHash });
-  await createSession(String(user._id), res);
-  res.status(201).json({ user: { id: user._id, email: user.email } });
+  const userId = String(user._id);
+  const [, kits] = await Promise.all([createSession(userId, res), listKitsForUser(userId)]);
+  res.status(201).json({ user: { id: user._id, email: user.email }, kits });
 });
 
 authRouter.post("/login", async (req, res) => {
@@ -59,8 +61,9 @@ authRouter.post("/login", async (req, res) => {
     res.status(401).json({ error: { code: "INVALID_CREDENTIALS", message: "Invalid email or password" } });
     return;
   }
-  await createSession(String(user._id), res);
-  res.json({ user: { id: user._id, email: user.email } });
+  const userId = String(user._id);
+  const [, kits] = await Promise.all([createSession(userId, res), listKitsForUser(userId)]);
+  res.json({ user: { id: user._id, email: user.email }, kits });
 });
 
 authRouter.post("/logout", async (req, res) => {

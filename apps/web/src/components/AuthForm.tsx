@@ -4,10 +4,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, type KitSummary } from "@/lib/api";
+import { useAuth, type AuthUser } from "@/lib/auth";
 
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
+  const { seedSession } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -18,10 +20,14 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     setBusy(true);
     setError("");
     try {
-      await api(mode === "login" ? "/auth/login" : "/auth/register", {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      });
+      const data = await api<{ user: AuthUser; kits: KitSummary[] }>(
+        mode === "login" ? "/auth/login" : "/auth/register",
+        {
+          method: "POST",
+          body: JSON.stringify({ email, password }),
+        },
+      );
+      seedSession(data.user, data.kits);
       router.push("/");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong");

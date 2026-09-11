@@ -1,12 +1,11 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import { Session } from "../models/Session.js";
-import { User } from "../models/User.js";
 
 const COOKIE = "interprep_session";
 const TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-export type AuthedRequest = Request & { userId: string; userEmail: string };
+export type AuthedRequest = Request & { userId: string };
 
 export function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -49,17 +48,11 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   const session = await Session.findOne({
     tokenHash: hashToken(token),
     expiresAt: { $gt: new Date() },
-  });
+  }).select("userId");
   if (!session) {
     res.status(401).json({ error: { code: "SESSION_EXPIRED", message: "Session expired" } });
     return;
   }
-  const user = await User.findById(session.userId);
-  if (!user) {
-    res.status(401).json({ error: { code: "UNAUTHENTICATED", message: "Account not found" } });
-    return;
-  }
-  (req as AuthedRequest).userId = String(user._id);
-  (req as AuthedRequest).userEmail = user.email;
+  (req as AuthedRequest).userId = String(session.userId);
   next();
 }

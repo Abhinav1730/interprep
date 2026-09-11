@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { KitCardSkeleton } from "@/components/Skeleton";
@@ -9,7 +8,8 @@ import { useToast } from "@/components/Toast";
 import { PLATFORM } from "@/lib/platform";
 import { loadLastKit } from "@/lib/last-kit";
 import { kitStatusClass, kitStatusLabel } from "@/lib/kit-status";
-import { ApiError, api, type KitRecord, type KitSummary } from "@/lib/api";
+import { api, type KitSummary } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 
 type KitCardMeta = {
   practiced?: number;
@@ -18,13 +18,10 @@ type KitCardMeta = {
 };
 
 export default function DashboardPage() {
-  const router = useRouter();
   const toast = useToast();
   const { confirm } = useConfirm();
-  const [email, setEmail] = useState("");
-  const [kits, setKits] = useState<KitSummary[] | null>(null);
+  const { user, kits, setKits } = useAuth();
   const [meta, setMeta] = useState<Record<string, KitCardMeta>>({});
-  const [error, setError] = useState("");
   const [lastKit, setLastKit] = useState<{ id: string; label: string } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -33,49 +30,13 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    api<{ user: { email: string } }>("/auth/me")
-      .then((me) => {
-        setEmail(me.user.email);
-        return api<{ kits: KitSummary[] }>("/kits");
-      })
-      .then(async (data) => {
-        setKits(data.kits);
-        const completed = data.kits.filter((k) => k.status === "completed");
-        const entries = await Promise.all(
-          completed.slice(0, 12).map(async (k) => {
-            try {
-              const [practice, detail] = await Promise.all([
-                api<{ records: Array<{ flashcardId: string }> }>(`/kits/${k.id}/practice`),
-                api<{ kit: KitRecord }>(`/kits/${k.id}`),
-              ]);
-              const dayNum = Math.min(
-                detail.kit.kit?.schedule?.days?.length ?? k.days,
-                Math.max(
-                  1,
-                  Math.floor((Date.now() - new Date(detail.kit.createdAt ?? k.createdAt).getTime()) / 86400000) + 1,
-                ),
-              );
-              const today = detail.kit.kit?.schedule?.days?.find((d) => d.day === dayNum);
-              return [
-                k.id,
-                {
-                  practiced: practice.records.length,
-                  totalFlashcards: detail.kit.kit?.flashcards?.length ?? 0,
-                  todayFocus: today?.focus,
-                },
-              ] as const;
-            } catch {
-              return [k.id, {}] as const;
-            }
-          }),
-        );
-        setMeta(Object.fromEntries(entries));
-      })
-      .catch((err) => {
-        if (err instanceof ApiError && err.status === 401) router.replace("/login");
-        else setError(err instanceof Error ? err.message : "Failed to load");
+    if (!kits?.length) return;
+    api<{ meta: Record<string, KitCardMeta> }>("/kits/card-meta")
+      .then((data) => setMeta(data.meta))
+      .catch(() => {
+        // card extras are optional; dashboard still works without them
       });
-  }, [router]);
+  }, [kits]);
 
   async function deleteKit(e: React.MouseEvent, kit: KitSummary) {
     e.preventDefault();
@@ -90,7 +51,12 @@ export default function DashboardPage() {
     setDeletingId(kit.id);
     try {
       await api(`/kits/${kit.id}`, { method: "DELETE" });
-      setKits((prev) => prev?.filter((k) => k.id !== kit.id) ?? null);
+      setKits(kits?.filter((k) => k.id !== kit.id) ?? []);
+      setMeta((prev) => {
+        const next = { ...prev };
+        delete next[kit.id];
+        return next;
+      });
       toast.success("Kit deleted");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not delete kit");
@@ -99,6 +65,7 @@ export default function DashboardPage() {
     }
   }
 
+  const email = user?.email ?? "";
   const completed = kits?.filter((k) => k.status === "completed").length ?? 0;
 
   return (
@@ -175,8 +142,6 @@ export default function DashboardPage() {
               New kit
             </Link>
           </div>
-
-          {error ? <p className="mb-4 text-sm text-danger">{error}</p> : null}
 
           {kits === null ? (
             <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
