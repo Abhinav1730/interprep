@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: #0b0c0e;
+  color: #f4f5f7;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2a2d34 transparent;
+}
+
+::selection {
+  background: rgba(94, 234, 212, 0.25);
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  outline: none;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  box-shadow: 0 0 0 2px #0b0c0e, 0 0 0 4px #5eead4;
+}

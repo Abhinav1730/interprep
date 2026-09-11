@@ -1,0 +1,26 @@
+{
+  "name": "interprep",
+  "private": true,
+  "version": "1.0.0",
+  "description": "AI Interview Prep Kit generator",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,magenta \"npm run dev -w @interprep/api\" \"npm run dev -w @interprep/web\"",
+    "dev:api": "npm run dev -w @interprep/api",
+    "dev:web": "npm run dev -w @interprep/web",
+    "build": "npm run build -w @interprep/shared && npm run build -w @interprep/retrieval && npm run build -w @interprep/llm && npm run build -w @interprep/pipeline && npm run build -w @interprep/api && npm run build -w @interprep/web",
+    "test": "npm run test -w @interprep/shared --if-present && npm run test -w @interprep/retrieval --if-present && npm run test -w @interprep/pipeline --if-present",
+    "evaluate": "npm run evaluate -w @interprep/api --",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.8.2"
+  }
+}

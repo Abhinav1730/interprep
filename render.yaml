@@ -1,0 +1,15 @@
+{
+  "services": [
+    {
+      "type": "web",
+      "name": "interprep-api",
+      "runtime": "node",
+      "buildCommand": "npm install",
+      "startCommand": "npm run start -w @interprep/api",
+      "envVars": [
+        { "key": "NODE_ENV", "value": "production" },
+        { "key": "ALLOW_PRIVATE_URLS", "value": "false" }
+      ]
+    }
+  ]
+}
